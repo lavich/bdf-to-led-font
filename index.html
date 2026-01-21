@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DotMatrix Font Preview</title>
+  <style>
+    @font-face {
+      font-family: 'DotMatrix';
+      src: url('DotMatrix.woff2') format('woff2'),
+           url('DotMatrix.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #0f0;
+      font-family: system-ui, sans-serif;
+    }
+
+    h1 {
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .preview {
+      font-family: 'DotMatrix', monospace;
+      font-size: 32px;
+      line-height: 1.4;
+      padding: 20px;
+      background: #000;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .led-green {
+      color: #0f0;
+      text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+    }
+
+    .led-red {
+      color: #f00;
+      text-shadow: 0 0 10px #f00, 0 0 20px #f00;
+    }
+
+    .led-amber {
+      color: #ffa500;
+      text-shadow: 0 0 10px #ffa500, 0 0 20px #ffa500;
+    }
+
+    .led-blue {
+      color: #00bfff;
+      text-shadow: 0 0 10px #00bfff, 0 0 20px #00bfff;
+    }
+
+    .controls {
+      margin-bottom: 20px;
+    }
+
+    .controls label {
+      color: #fff;
+      margin-right: 10px;
+    }
+
+    .controls input, .controls select {
+      padding: 8px;
+      border-radius: 4px;
+      border: none;
+      margin-right: 20px;
+    }
+
+    #customText {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 4px;
+      border: none;
+    }
+
+    .size-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .size-demo .preview {
+      margin-bottom: 0;
+    }
+
+    .size-16 { font-size: 16px; }
+    .size-24 { font-size: 24px; }
+    .size-32 { font-size: 32px; }
+    .size-48 { font-size: 48px; }
+    .size-64 { font-size: 64px; }
+  </style>
+</head>
+<body>
+  <h1>DotMatrix LED Font Preview</h1>
+
+  <div class="controls">
+    <label>Size:</label>
+    <select id="sizeSelect">
+      <option value="16">16px</option>
+      <option value="24">24px</option>
+      <option value="32" selected>32px</option>
+      <option value="48">48px</option>
+      <option value="64">64px</option>
+      <option value="96">96px</option>
+    </select>
+
+    <label>Color:</label>
+    <select id="colorSelect">
+      <option value="led-green">Green</option>
+      <option value="led-red">Red</option>
+      <option value="led-amber">Amber</option>
+      <option value="led-blue">Blue</option>
+    </select>
+  </div>
+
+  <input type="text" id="customText" placeholder="Type your own text here..." value="Hello, World!">
+
+  <div class="preview led-green" id="customPreview">Hello, World!</div>
+
+  <h2 style="color: #fff; margin-top: 40px;">Sample Text</h2>
+
+  <div class="preview led-green">
+    ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>
+    abcdefghijklmnopqrstuvwxyz<br>
+    0123456789
+  </div>
+
+  <div class="preview led-amber">
+    !@#$%^&*()_+-=[]{}|;':",./&lt;&gt;?
+  </div>
+
+  <div class="preview led-red">
+    The quick brown fox jumps<br>
+    over the lazy dog.
+  </div>
+
+  <div class="preview led-blue">
+    WELCOME TO THE MATRIX<br>
+    ═══════════════════════
+  </div>
+
+  <h2 style="color: #fff; margin-top: 40px;">Size Comparison</h2>
+
+  <div class="size-demo">
+    <div class="preview led-green size-16">16px: The quick brown fox</div>
+    <div class="preview led-green size-24">24px: The quick brown fox</div>
+    <div class="preview led-green size-32">32px: The quick brown fox</div>
+    <div class="preview led-green size-48">48px: The quick brown fox</div>
+    <div class="preview led-green size-64">64px: LED Display</div>
+  </div>
+
+  <script>
+    const customText = document.getElementById('customText');
+    const customPreview = document.getElementById('customPreview');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const colorSelect = document.getElementById('colorSelect');
+
+    customText.addEventListener('input', () => {
+      customPreview.textContent = customText.value || 'Type something...';
+    });
+
+    sizeSelect.addEventListener('change', () => {
+      customPreview.style.fontSize = sizeSelect.value + 'px';
+    });
+
+    colorSelect.addEventListener('change', () => {
+      customPreview.className = 'preview ' + colorSelect.value;
+    });
+  </script>
+</body>
+</html>
