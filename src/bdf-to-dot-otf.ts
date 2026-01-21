@@ -17,9 +17,13 @@ const DESCENT = CELL * BDF_DESCENT; // 250
 
 /**
  * Add a circle to a path using cubic Bezier curves
+ * All coordinates are rounded to integers for better WOFF2 compression
  */
 function addCircle(path: opentype.Path, cx: number, cy: number, r: number) {
-  const k = r * 0.5522847498; // magic number for cubic bezier circle
+  const k = Math.round(r * 0.5522847498);
+  cx = Math.round(cx);
+  cy = Math.round(cy);
+  r = Math.round(r);
 
   path.moveTo(cx + r, cy);
   path.curveTo(cx + r, cy + k, cx + k, cy + r, cx, cy + r);
