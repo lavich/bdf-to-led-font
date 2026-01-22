@@ -12,58 +12,73 @@ from fontTools.ttLib import TTFont
 
 
 def parse_bdf(filepath: str) -> dict:
-    """Parse BDF font file and return glyph data."""
+    """Parse BDF font file and return glyph data and font metrics."""
     glyphs = {}
+    metrics = {}
     current_glyph = None
     in_bitmap = False
     bitmap_lines = []
 
-    with open(filepath, 'r') as f:
+    with open(filepath, "r") as f:
         for line in f:
             line = line.strip()
 
-            if line.startswith('STARTCHAR'):
-                current_glyph = {'name': line.split()[1]}
+            # Parse global font metrics
+            if line.startswith("FONT_ASCENT"):
+                metrics["ascent"] = int(line.split()[1])
+            elif line.startswith("FONT_DESCENT"):
+                metrics["descent"] = int(line.split()[1])
+            elif line.startswith("PIXEL_SIZE"):
+                metrics["pixel_size"] = int(line.split()[1])
+
+            if line.startswith("STARTCHAR"):
+                current_glyph = {"name": line.split()[1]}
                 bitmap_lines = []
                 in_bitmap = False
 
-            elif line.startswith('ENCODING'):
+            elif line.startswith("ENCODING"):
                 if current_glyph:
-                    current_glyph['encoding'] = int(line.split()[1])
+                    current_glyph["encoding"] = int(line.split()[1])
 
-            elif line.startswith('DWIDTH'):
+            elif line.startswith("DWIDTH"):
                 if current_glyph:
-                    current_glyph['width'] = int(line.split()[1])
+                    current_glyph["width"] = int(line.split()[1])
 
-            elif line.startswith('BBX'):
+            elif line.startswith("BBX"):
                 if current_glyph:
                     parts = line.split()
-                    current_glyph['bbx'] = {
-                        'width': int(parts[1]),
-                        'height': int(parts[2]),
-                        'x_offset': int(parts[3]),
-                        'y_offset': int(parts[4]),
+                    current_glyph["bbx"] = {
+                        "width": int(parts[1]),
+                        "height": int(parts[2]),
+                        "x_offset": int(parts[3]),
+                        "y_offset": int(parts[4]),
                     }
 
-            elif line == 'BITMAP':
+            elif line == "BITMAP":
                 in_bitmap = True
 
-            elif line == 'ENDCHAR':
-                if current_glyph and current_glyph.get('encoding', -1) >= 0:
-                    current_glyph['bitmap'] = parse_bitmap(bitmap_lines, current_glyph.get('bbx', {}))
-                    glyphs[current_glyph['encoding']] = current_glyph
+            elif line == "ENDCHAR":
+                if current_glyph and current_glyph.get("encoding", -1) >= 0:
+                    current_glyph["bitmap"] = parse_bitmap(
+                        bitmap_lines, current_glyph.get("bbx", {})
+                    )
+                    glyphs[current_glyph["encoding"]] = current_glyph
                 current_glyph = None
                 in_bitmap = False
 
             elif in_bitmap and current_glyph:
                 bitmap_lines.append(line)
 
-    return glyphs
+    # Calculate height from ascent + descent if pixel_size not found
+    if "pixel_size" not in metrics and "ascent" in metrics and "descent" in metrics:
+        metrics["pixel_size"] = metrics["ascent"] + metrics["descent"]
+
+    return {"glyphs": glyphs, "metrics": metrics}
 
 
 def parse_bitmap(lines: list, bbx: dict) -> list:
     """Convert hex bitmap lines to 2D array of pixels."""
-    width = bbx.get('width', 8)
+    width = bbx.get("width", 8)
     bitmap = []
 
     for line in lines:
@@ -72,7 +87,7 @@ def parse_bitmap(lines: list, bbx: dict) -> list:
         bits = bin(value)[2:].zfill(len(line) * 4)
 
         for i in range(width):
-            row.append(1 if i < len(bits) and bits[i] == '1' else 0)
+            row.append(1 if i < len(bits) and bits[i] == "1" else 0)
 
         bitmap.append(row)
 
@@ -82,6 +97,7 @@ def parse_bitmap(lines: list, bbx: dict) -> list:
 def draw_circle(pen, cx, cy, r):
     """Draw a circle using quadratic Bezier curves with 12 points for smoother result."""
     import math
+
     cx, cy, r = int(cx), int(cy), int(r)
 
     # 12-point circle (every 30 degrees) for smoother appearance
@@ -120,33 +136,37 @@ def main():
     output_name = sys.argv[2] if len(sys.argv) > 2 else "DotMatrix"
 
     print(f"Reading {bdf_path}...")
-    bdf_glyphs = parse_bdf(bdf_path)
+    bdf_data = parse_bdf(bdf_path)
+    bdf_glyphs = bdf_data["glyphs"]
+    bdf_metrics = bdf_data["metrics"]
     print(f"Found {len(bdf_glyphs)} glyphs")
 
-    # Font metrics
+    # Font metrics from BDF file
     EM = 1000
-    BDF_HEIGHT = 11
-    BDF_DESCENT = 4
-    CELL = EM // BDF_HEIGHT  # 62
-    RADIUS = int(CELL * 0.4)  # 24
-    ASCENT = CELL * (BDF_HEIGHT - BDF_DESCENT)  # 750
-    DESCENT = CELL * BDF_DESCENT  # 250
+    BDF_HEIGHT = bdf_metrics.get("pixel_size", 16)
+    BDF_DESCENT = bdf_metrics.get("descent", 4)
+    print(f"Font metrics: height={BDF_HEIGHT}, descent={BDF_DESCENT}")
+
+    CELL = EM // BDF_HEIGHT
+    RADIUS = int(CELL * 0.4)
+    ASCENT = CELL * (BDF_HEIGHT - BDF_DESCENT)
+    DESCENT = CELL * BDF_DESCENT
 
     # Build glyph order
-    glyph_names = ['.notdef'] + [f'uni{cp:04X}' for cp in sorted(bdf_glyphs.keys())]
+    glyph_names = [".notdef"] + [f"uni{cp:04X}" for cp in sorted(bdf_glyphs.keys())]
 
     # Character map
-    cmap = {cp: f'uni{cp:04X}' for cp in bdf_glyphs.keys()}
+    cmap = {cp: f"uni{cp:04X}" for cp in bdf_glyphs.keys()}
 
     # Metrics
-    metrics = {'.notdef': (CELL * 6, 0)}
+    metrics = {".notdef": (CELL * 6, 0)}
 
     # Build glyphs
     glyph_table = {}
 
     # .notdef - empty
     pen = TTGlyphPen(None)
-    glyph_table['.notdef'] = pen.glyph()
+    glyph_table[".notdef"] = pen.glyph()
 
     # Process BDF glyphs
     total = len(bdf_glyphs)
@@ -154,17 +174,17 @@ def main():
         if i % 500 == 0:
             print(f"  Processing glyph {i}/{total}...")
 
-        glyph_name = f'uni{cp:04X}'
-        bitmap = gdata.get('bitmap', [])
-        width = gdata.get('width', 6)
-        bbx = gdata.get('bbx', {})
+        glyph_name = f"uni{cp:04X}"
+        bitmap = gdata.get("bitmap", [])
+        width = gdata.get("width", 6)
+        bbx = gdata.get("bbx", {})
 
         pen = TTGlyphPen(None)
 
         if bitmap:
             height = len(bitmap)
-            x_offset = bbx.get('x_offset', 0)
-            y_offset = bbx.get('y_offset', 0)
+            x_offset = bbx.get("x_offset", 0)
+            y_offset = bbx.get("y_offset", 0)
 
             for y, row in enumerate(bitmap):
                 for x, bit in enumerate(row):
@@ -186,13 +206,19 @@ def main():
     fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=ASCENT, descent=-DESCENT, lineGap=0)
     fb.setupHead(unitsPerEm=EM, created=0, modified=0)
-    fb.setupOS2(sTypoAscender=ASCENT, sTypoDescender=-DESCENT,
-                usWinAscent=ASCENT, usWinDescent=DESCENT)
+    fb.setupOS2(
+        sTypoAscender=ASCENT,
+        sTypoDescender=-DESCENT,
+        usWinAscent=ASCENT,
+        usWinDescent=DESCENT,
+    )
     fb.setupPost()
-    fb.setupNameTable({
-        'familyName': output_name,
-        'styleName': 'Regular',
-    })
+    fb.setupNameTable(
+        {
+            "familyName": output_name,
+            "styleName": "Regular",
+        }
+    )
 
     # Save TTF
     ttf_path = f"{output_name}.ttf"
@@ -203,7 +229,7 @@ def main():
     woff2_path = f"{output_name}.woff2"
     print(f"Saving {woff2_path}...")
     font = TTFont(ttf_path)
-    font.flavor = 'woff2'
+    font.flavor = "woff2"
     font.save(woff2_path)
 
     # Print sizes
