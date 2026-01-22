@@ -1,0 +1,84 @@
+name: Build Font and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate fonts from BDF
+        run: |
+          python bdf-to-dot-font.py kirsch.bdf
+
+      - name: Verify generated fonts
+        run: |
+          ls -lh DotMatrix.ttf DotMatrix.woff2
+          echo "TTF size: $(du -h DotMatrix.ttf | cut -f1)"
+          echo "WOFF2 size: $(du -h DotMatrix.woff2 | cut -f1)"
+
+      - name: Prepare GitHub Pages content
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp DotMatrix.woff2 _site/
+          cp DotMatrix.ttf _site/
+
+          # Create a simple info page
+          cat > _site/info.txt << 'EOF'
+          BDF to Dot-Matrix Font Converter
+          Generated: $(date)
+          Source: kirsch.bdf
+          Output: DotMatrix.ttf, DotMatrix.woff2
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
