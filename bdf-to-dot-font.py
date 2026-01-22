@@ -125,7 +125,7 @@ def main():
 
     # Font metrics
     EM = 1000
-    BDF_HEIGHT = 16
+    BDF_HEIGHT = 11
     BDF_DESCENT = 4
     CELL = EM // BDF_HEIGHT  # 62
     RADIUS = int(CELL * 0.4)  # 24
